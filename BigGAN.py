@@ -10,7 +10,6 @@ import torch.nn.functional as F
 from torch.nn import Parameter as P
 
 import layers
-from sync_batchnorm import SynchronizedBatchNorm2d as SyncBatchNorm2d
 
 
 # Architectures for G
@@ -52,15 +51,15 @@ def G_arch(ch=64, attention='64', ksize='333333', dilation='111111'):
   return arch
 
 class Generator(nn.Module):
-  def __init__(self, G_ch=64, dim_z=128, bottom_width=4, resolution=128,
-               G_kernel_size=3, G_attn='64', n_classes=1000,
+  def __init__(self, G_ch=64, dim_z=128, bottom_width=4, resolution=32,
+               G_kernel_size=3, G_attn='0', n_classes=10,
                num_G_SVs=1, num_G_SV_itrs=1,
-               G_shared=True, shared_dim=0, hier=False,
+               G_shared=False, shared_dim=0, hier=False,
                cross_replica=False, mybn=False,
                G_activation=nn.ReLU(inplace=False),
-               G_lr=5e-5, G_B1=0.0, G_B2=0.999, adam_eps=1e-8,
-               BN_eps=1e-5, SN_eps=1e-12, G_mixed_precision=False, G_fp16=False,
-               G_init='ortho', skip_init=False, no_optim=False,
+               G_lr=0.0002, G_B1=0.0, G_B2=0.999, adam_eps=1e-8,
+               BN_eps=1e-5, SN_eps=1e-8, G_mixed_precision=False, G_fp16=False,
+               G_init='N02', skip_init=False, no_optim=False,
                G_param='SN', norm_style='bn',
                **kwargs):
     super(Generator, self).__init__()
@@ -282,13 +281,13 @@ def D_arch(ch=64, attention='64',ksize='333333', dilation='111111'):
 
 class Discriminator(nn.Module):
 
-  def __init__(self, D_ch=64, D_wide=True, resolution=128,
-               D_kernel_size=3, D_attn='64', n_classes=1000,
+  def __init__(self, D_ch=64, D_wide=True, resolution=32,
+               D_kernel_size=3, D_attn='0', n_classes=10,
                num_D_SVs=1, num_D_SV_itrs=1, D_activation=nn.ReLU(inplace=False),
                D_lr=2e-4, D_B1=0.0, D_B2=0.999, adam_eps=1e-8,
-               SN_eps=1e-12, output_dim=1, D_mixed_precision=False, D_fp16=False,
-               D_init='ortho', skip_init=False, D_param='SN', **kwargs):
-    super(Discriminator, self).__init__()
+               SN_eps=1e-8, output_dim=1, D_mixed_precision=False, D_fp16=False,
+               D_init='N02', skip_init=False, D_param='SN', **kwargs):
+    super(Discriminator, self).__init__() 
     # Width multiplier
     self.ch = D_ch
     # Use Wide D as in BigGAN and SA-GAN or skinny D as in SN-GAN?
@@ -412,7 +411,7 @@ class G_D(nn.Module):
     self.D = D
 
   def forward(self, z, gy, x=None, dy=None, train_G=False, return_G_z=False,
-              split_D=False):              
+              split_D=False):           
     # If training G, enable grad tape
     with torch.set_grad_enabled(train_G):
       # Get Generator output given noise

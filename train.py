@@ -47,7 +47,7 @@ def run(config):
     print('Skipping initialization for training resumption...')
     config['skip_init'] = True
   config = utils.update_config_roots(config)
-  device = 'cuda'
+  device = 'cuda' if torch.cuda.is_available() else 'cpu'
   
   # Seed RNG
   utils.seed_rng(config['seed'])
@@ -181,6 +181,8 @@ def run(config):
         x, y = x.to(device).half(), y.to(device)
       else:
         x, y = x.to(device), y.to(device)
+      # print(x.shape)
+      # print(y.shape)
       metrics = train(x, y)
       train_log.log(itr=int(state_dict['itr']), **metrics)
       
