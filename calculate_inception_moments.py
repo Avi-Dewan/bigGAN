@@ -54,7 +54,7 @@ def run(config):
   # Load inception net
   net = inception_utils.load_inception_net(parallel=config['parallel'])
   pool, logits, labels = [], [], []
-  device = 'cuda' if torch.cuda.is_available() else 'cpu'
+  device = 'cuda'
   for i, (x, y) in enumerate(tqdm(loaders[0])):
     x = x.to(device)
     with torch.no_grad():
