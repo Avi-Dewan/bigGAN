@@ -212,7 +212,7 @@ def run(config):
           G.eval()
         train_fns.test(G, D, G_ema, z_, y_, state_dict, config, sample,
                        get_inception_metrics, experiment_name, test_log)
-    print(f'Epoch: {state_dict['epoch']} completed....\n')
+    print(f'Epoch: {epoch+1} completed....\n')
     # Increment epoch counter at end of epoch
     state_dict['epoch'] += 1
 
