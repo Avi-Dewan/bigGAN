@@ -23,13 +23,11 @@ from torch.nn import Parameter as P
 import torchvision
 
 # Import my stuff
+import inception_utils
 import utils
 import losses
 import train_fns
 from sync_batchnorm import patch_replication_callback
-
-# Avi edit:
-# from cifar_data.cifarloader import CIFAR10Loader
 
 # The main training file. Config is a dictionary specifying the configuration
 # of this training run.
@@ -49,7 +47,7 @@ def run(config):
     print('Skipping initialization for training resumption...')
     config['skip_init'] = True
   config = utils.update_config_roots(config)
-  device = 'cuda' if torch.cuda.is_available() else 'cpu'
+  device = 'cuda'
   
   # Seed RNG
   utils.seed_rng(config['seed'])
@@ -135,7 +133,8 @@ def run(config):
   loaders = utils.get_data_loaders(**{**config, 'batch_size': D_batch_size,
                                       'start_itr': state_dict['itr']})
 
-  # train_loader = CIFAR10Loader(root='./data/cifar', batch_size=D_batch_size, split='train', aug='twice', shuffle=True, target_list=range(0, 10))
+  # Prepare inception metrics: FID and IS
+  get_inception_metrics = inception_utils.prepare_inception_metrics(config['dataset'], config['parallel'], config['no_fid'])
 
   # Prepare noise and randomly sampled label arrays
   # Allow for different batch sizes in G
@@ -155,7 +154,11 @@ def run(config):
   # Else, assume debugging and use the dummy train fn
   else:
     train = train_fns.dummy_training_function()
-  
+  # Prepare Sample function for use with inception metrics
+  sample = functools.partial(utils.sample,
+                              G=(G_ema if config['ema'] and config['use_ema']
+                                 else G),
+                              z_=z_, y_=y_, config=config)
 
   print('Beginning training at epoch %d...' % state_dict['epoch'])
   # Train for specified number of epochs, although we mostly track G iterations.
@@ -165,8 +168,7 @@ def run(config):
       pbar = utils.progress(loaders[0],displaytype='s1k' if config['use_multiepoch_sampler'] else 'eta')
     else:
       pbar = tqdm(loaders[0])
-    # for i, (x, y) in enumerate(pbar):
-    for i, ((x, _), y, _) in enumerate(pbar):
+    for i, (x, y) in enumerate(pbar):
       # Increment the iteration counter
       state_dict['itr'] += 1
       # Make sure G and D are in training mode, just in case they got set to eval
@@ -203,6 +205,13 @@ def run(config):
         train_fns.save_and_sample(G, D, G_ema, z_, y_, fixed_z, fixed_y, 
                                   state_dict, config, experiment_name)
 
+      # Test every specified interval
+      if not (state_dict['itr'] % config['test_every']):
+        if config['G_eval_mode']:
+          print('Switchin G to eval mode...')
+          G.eval()
+        train_fns.test(G, D, G_ema, z_, y_, state_dict, config, sample,
+                       get_inception_metrics, experiment_name, test_log)
     # Increment epoch counter at end of epoch
     state_dict['epoch'] += 1
 
