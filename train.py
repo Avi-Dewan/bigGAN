@@ -29,7 +29,7 @@ import train_fns
 from sync_batchnorm import patch_replication_callback
 
 # Avi edit:
-from cifar_data.cifarloader import CIFAR10Loader
+# from cifar_data.cifarloader import CIFAR10Loader
 
 # The main training file. Config is a dictionary specifying the configuration
 # of this training run.
@@ -132,10 +132,10 @@ def run(config):
   # a full D iteration (regardless of number of D steps and accumulations)
   D_batch_size = (config['batch_size'] * config['num_D_steps']
                   * config['num_D_accumulations'])
-  # loaders = utils.get_data_loaders(**{**config, 'batch_size': D_batch_size,
-  #                                     'start_itr': state_dict['itr']})
+  loaders = utils.get_data_loaders(**{**config, 'batch_size': D_batch_size,
+                                      'start_itr': state_dict['itr']})
 
-  train_loader = CIFAR10Loader(root='./data/cifar', batch_size=D_batch_size, split='train', aug='twice', shuffle=True, target_list=range(0, 10))
+  # train_loader = CIFAR10Loader(root='./data/cifar', batch_size=D_batch_size, split='train', aug='twice', shuffle=True, target_list=range(0, 10))
 
   # Prepare noise and randomly sampled label arrays
   # Allow for different batch sizes in G
@@ -162,9 +162,9 @@ def run(config):
   for epoch in range(state_dict['epoch'], config['num_epochs']):    
     # Which progressbar to use? TQDM or my own?
     if config['pbar'] == 'mine':
-      pbar = utils.progress(train_loader,displaytype='s1k' if config['use_multiepoch_sampler'] else 'eta')
+      pbar = utils.progress(loaders[0],displaytype='s1k' if config['use_multiepoch_sampler'] else 'eta')
     else:
-      pbar = tqdm(train_loader)
+      pbar = tqdm(loaders[0])
     # for i, (x, y) in enumerate(pbar):
     for i, ((x, _), y, _) in enumerate(pbar):
       # Increment the iteration counter
